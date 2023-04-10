@@ -20,7 +20,7 @@ class Elementor extends Integration {
 	 *
 	 * @return bool
 	 */
-	public static function is_installed() {
+	public static function is_installed(): bool {
 		if ( defined( 'ELEMENTOR_VERSION' ) ) {
 			return true;
 		}
@@ -32,6 +32,13 @@ class Elementor extends Integration {
 	 * Init integration.
 	 */
 	public function init() {
+		// Nothing to do.
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function setup() {
 		add_filter( 'elementor/editor/localize_settings', array( $this, 'localize_settings' ) );
 		add_action( 'elementor/frontend/before_render', array( $this, 'frontend_before_render' ) );
 		add_filter( 'update_post_metadata', array( $this, 'update_post_metadata' ), 10, 5 );
@@ -97,7 +104,6 @@ class Elementor extends Integration {
 	 * @param Element_Base $element
 	 *
 	 * @handles elementor/frontend/before_render
-	 *
 	 */
 	public function frontend_before_render( $element ) {
 		$element->set_settings(

@@ -13,22 +13,9 @@ class Download_And_Remover extends Downloader {
 	protected $tool_key = 'download_and_remover';
 
 	/**
-	 * Get the details for the sidebar block
-	 *
-	 * @return array|bool
-	 */
-	protected function get_sidebar_block_args() {
-		if ( ! $this->as3cf->is_plugin_setup( true ) ) {
-			return false;
-		}
-
-		return $this->default_sidebar_block_args();
-	}
-
-	/**
 	 * Message for error notice
 	 *
-	 * @param null $message Optional message to override the default for the tool.
+	 * @param string|null $message Optional message to override the default for the tool.
 	 *
 	 * @return string
 	 */
@@ -45,6 +32,10 @@ class Download_And_Remover extends Downloader {
 	 * @return bool
 	 */
 	public function should_render() {
+		if ( ! $this->as3cf->is_plugin_setup() ) {
+			return false;
+		}
+
 		return (bool) $this->count_offloaded_media_files();
 	}
 
@@ -63,7 +54,7 @@ class Download_And_Remover extends Downloader {
 	 * @return string
 	 */
 	public static function get_more_info_text() {
-		return __( 'This tool goes through all your Media Library attachments and deletes files from the bucket. If the file doesn\'t exist on your server, it will download it before deleting.', 'amazon-s3-and-cloudfront' );
+		return __( 'This tool goes through all your media and deletes files from the bucket. If the file doesn\'t exist on your server, it will download it before deleting.', 'amazon-s3-and-cloudfront' );
 	}
 
 	/**
@@ -80,8 +71,17 @@ class Download_And_Remover extends Downloader {
 	 *
 	 * @return string
 	 */
-	public function get_queued_status() {
-		return __( 'Removing Media Library from bucket', 'amazon-s3-and-cloudfront' );
+	public function get_queued_status(): string {
+		return __( 'Removing media from bucket', 'amazon-s3-and-cloudfront' );
+	}
+
+	/**
+	 * Get short queued status text.
+	 *
+	 * @return string
+	 */
+	public function get_short_queued_status(): string {
+		return _x( 'Removing…', 'Short tool running message', 'amazon-s3-and-cloudfront' );
 	}
 
 	/**

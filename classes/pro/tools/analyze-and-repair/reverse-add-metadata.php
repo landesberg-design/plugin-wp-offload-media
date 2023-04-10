@@ -26,7 +26,7 @@ class Reverse_Add_Metadata extends Analyze_And_Repair {
 	 * @return string
 	 */
 	public function get_title_text() {
-		return __( 'Remove Metadata', 'amazon-s3-and-cloudfront' );
+		return __( 'Remove metadata added by the Add Metadata tool', 'amazon-s3-and-cloudfront' );
 	}
 
 	/**
@@ -52,8 +52,17 @@ class Reverse_Add_Metadata extends Analyze_And_Repair {
 	 *
 	 * @return string
 	 */
-	public function get_queued_status() {
+	public function get_queued_status(): string {
 		return __( 'Removing metadata added by the Add Metadata tool.', 'amazon-s3-and-cloudfront' );
+	}
+
+	/**
+	 * Get short queued status text.
+	 *
+	 * @return string
+	 */
+	public function get_short_queued_status(): string {
+		return _x( 'Removing metadata…', 'Short tool running message', 'amazon-s3-and-cloudfront' );
 	}
 
 	/**

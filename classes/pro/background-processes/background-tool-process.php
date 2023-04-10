@@ -64,8 +64,17 @@ abstract class Background_Tool_Process extends AS3CF_Background_Process {
 	 */
 	protected function task( $item ) {
 		if ( ! $item['blogs_processed'] ) {
-			// Calculate how many items each blog has
+			// Calculate how many items each blog has,
+			// and return immediately to allow monitoring
+			// processes see initial state.
 			$item = $this->calculate_blog_items( $item );
+
+			if ( $this->all_blog_items_processed( $item ) ) {
+				// Nothing to do, remove from queue.
+				return false;
+			} else {
+				return $item;
+			}
 		}
 
 		if ( $this->all_blog_items_processed( $item ) ) {
@@ -151,6 +160,11 @@ abstract class Background_Tool_Process extends AS3CF_Background_Process {
 			foreach ( $blog['last_source_id'] as $source_type => $last_source_id ) {
 				$items = $this->get_blog_items( $source_type, $last_source_id, $limit );
 				$item  = $this->process_blog_items( $item, $blog_id, $source_type, $items );
+			}
+
+			// If we've just finished processing a subsite, force update its totals.
+			if ( is_multisite() && $this->all_source_types_processed( $item['blogs'][ $blog_id ] ) ) {
+				$this->as3cf->media_counts( true, true, $blog_id );
 			}
 
 			$this->as3cf->restore_current_blog();
@@ -342,7 +356,15 @@ abstract class Background_Tool_Process extends AS3CF_Background_Process {
 	 * @return string
 	 */
 	protected function get_complete_with_errors_message() {
-		return $this->get_complete_message() . ' ' . __( 'Some errors were recorded.', 'amazon-s3-and-cloudfront' );
+		$msg = $this->get_complete_message() . ' ';
+		$msg .= sprintf(
+			'<a href="%1$s">',
+			$this->as3cf->get_plugin_page_url( array( 'hash' => '/tools/' ) )
+		);
+		$msg .= __( 'Some errors were recorded.', 'amazon-s3-and-cloudfront' );
+		$msg .= '</a>';
+
+		return $msg;
 	}
 
 	/**

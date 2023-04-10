@@ -31,7 +31,7 @@ class Woocommerce extends Integration {
 	 *
 	 * @return bool
 	 */
-	public static function is_installed() {
+	public static function is_installed(): bool {
 		if ( class_exists( 'WooCommerce' ) ) {
 			return true;
 		}
@@ -43,6 +43,13 @@ class Woocommerce extends Integration {
 	 * Init integration.
 	 */
 	public function init() {
+		// Nothing to do.
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function setup() {
 		add_action( 'admin_enqueue_scripts', array( $this, 'admin_scripts' ) );
 		add_action( 'woocommerce_process_product_file_download_paths', array( $this, 'make_files_private_on_provider' ), 10, 3 );
 		add_filter( 'woocommerce_file_download_path', array( $this, 'woocommerce_file_download_path' ), 20, 1 );
@@ -442,7 +449,11 @@ class Woocommerce extends Integration {
 				if ( $bucket_setting === $atts['bucket'] ) {
 					$region = $this->as3cf->get_setting( 'region' );
 				} else {
-					$region = $this->as3cf->get_bucket_region( $atts['bucket'], true );
+					$region = $this->as3cf->get_bucket_region( $atts['bucket'] );
+				}
+
+				if ( is_wp_error( $region ) ) {
+					return;
 				}
 
 				try {
@@ -487,7 +498,7 @@ class Woocommerce extends Integration {
 	/**
 	 * Filter handler for set_wp_die_handler.
 	 *
-	 * @param $handler
+	 * @param array $handler
 	 *
 	 * @return array
 	 */

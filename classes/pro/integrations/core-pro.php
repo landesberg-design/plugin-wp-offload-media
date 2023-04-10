@@ -15,8 +15,11 @@ class Core_Pro extends Core {
 	 */
 	protected $as3cf;
 
-	public function init() {
-		parent::init();
+	/**
+	 * @inheritDoc
+	 */
+	public function setup() {
+		parent::setup();
 
 		add_action( 'as3cf_pre_handle_item_' . Remove_Provider_Handler::get_item_handler_key_name(), array( $this, 'maybe_download_files' ), 10, 3 );
 	}

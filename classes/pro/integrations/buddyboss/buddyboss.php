@@ -38,7 +38,7 @@ class BuddyBoss extends Integration {
 	 *
 	 * @return bool
 	 */
-	public static function is_installed() {
+	public static function is_installed(): bool {
 		global $buddyboss_platform_plugin_file;
 
 		if ( class_exists( 'BuddyPress' ) && is_string( $buddyboss_platform_plugin_file ) && ! is_multisite() ) {
@@ -52,6 +52,34 @@ class BuddyBoss extends Integration {
 	 * Init integration.
 	 */
 	public function init() {
+		$this->source_types = array(
+			'bboss-user-avatar'  => array(
+				'class' => BBoss_Item::get_item_class( 'user', 'avatar' ),
+			),
+			'bboss-user-cover'   => array(
+				'class' => BBoss_Item::get_item_class( 'user', 'cover' ),
+			),
+			'bboss-group-avatar' => array(
+				'class' => BBoss_Item::get_item_class( 'group', 'avatar' ),
+			),
+			'bboss-group-cover'  => array(
+				'class' => BBoss_Item::get_item_class( 'group', 'cover' ),
+			),
+		);
+
+		// Register our item source types with the global as3cf object.
+		foreach ( $this->source_types as $key => $source_type ) {
+			$this->as3cf->register_source_type( $key, $source_type['class'] );
+		}
+
+		// Register our item summary types with the global as3cf object.
+		$this->as3cf->register_summary_type( BBoss_Item::summary_type(), BBoss_Item::class );
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function setup() {
 		// URL Rewriting.
 		add_filter( 'bp_core_fetch_avatar_url_check', array( $this, 'fetch_avatar' ), 10, 2 );
 		add_filter( 'bp_core_fetch_gravatar_url_check', array( $this, 'fetch_default_avatar' ), 99, 2 );
@@ -62,11 +90,11 @@ class BuddyBoss extends Integration {
 		add_filter( 'bb_get_default_custom_upload_group_cover', array( $this, 'filter_bb_get_default_custom_upload_group_cover' ), 10 );
 
 		// Storage handling.
-		add_action( 'bp_core_pre_avatar_handle_crop', array( $this, 'filter_bp_core_pre_avatar_handle_crop', ), 10, 2 );
-		add_action( 'xprofile_avatar_uploaded', array( $this, 'avatar_uploaded', ), 10, 3 );
-		add_action( 'groups_avatar_uploaded', array( $this, 'avatar_uploaded', ), 10, 3 );
-		add_action( 'xprofile_cover_image_uploaded', array( $this, 'user_cover_uploaded', ), 10, 1 );
-		add_action( 'groups_cover_image_uploaded', array( $this, 'groups_cover_uploaded', ), 10, 1 );
+		add_action( 'bp_core_pre_avatar_handle_crop', array( $this, 'filter_bp_core_pre_avatar_handle_crop' ), 10, 2 );
+		add_action( 'xprofile_avatar_uploaded', array( $this, 'avatar_uploaded' ), 10, 3 );
+		add_action( 'groups_avatar_uploaded', array( $this, 'avatar_uploaded' ), 10, 3 );
+		add_action( 'xprofile_cover_image_uploaded', array( $this, 'user_cover_uploaded' ), 10, 1 );
+		add_action( 'groups_cover_image_uploaded', array( $this, 'groups_cover_uploaded' ), 10, 1 );
 		add_action( 'bp_core_delete_existing_avatar', array( $this, 'delete_existing_avatar' ), 10, 1 );
 		add_action( 'xprofile_cover_image_deleted', array( $this, 'delete_existing_user_cover' ), 10, 1 );
 		add_action( 'groups_cover_image_deleted', array( $this, 'delete_existing_group_cover' ), 10, 1 );
@@ -80,26 +108,6 @@ class BuddyBoss extends Integration {
 		add_filter( 'as3cf_get_provider_url_for_item_source', array( $this, 'filter_get_provider_url_for_item_source' ), 10, 3 );
 		add_filter( 'as3cf_get_local_url_for_item_source', array( $this, 'filter_get_local_url_for_item_source' ), 10, 3 );
 		add_filter( 'as3cf_strip_image_edit_suffix_and_extension', array( $this, 'filter_strip_image_edit_suffix_and_extension' ), 10, 2 );
-
-		$this->source_types = array(
-			'bboss-user-avatar'  => [
-				'class' => BBoss_Item::get_item_class( 'user', 'avatar' ),
-			],
-			'bboss-user-cover'   => [
-				'class' => BBoss_Item::get_item_class( 'user', 'cover' ),
-			],
-			'bboss-group-avatar' => [
-				'class' => BBoss_Item::get_item_class( 'group', 'avatar' ),
-			],
-			'bboss-group-cover'  => [
-				'class' => BBoss_Item::get_item_class( 'group', 'cover' ),
-			],
-		);
-
-		// Register our item types with the global as3cf object
-		foreach ( $this->source_types as $key => $source_type ) {
-			$this->as3cf->register_source_type( $key, $source_type['class'] );
-		}
 	}
 
 	/**
@@ -452,7 +460,6 @@ class BuddyBoss extends Integration {
 	 * @handles xprofile_cover_image_deleted
 	 *
 	 * @param int $source_id
-	 *
 	 */
 	public function delete_existing_user_cover( $source_id ) {
 		$this->delete_existing_cover( $source_id, 'user' );
@@ -464,7 +471,6 @@ class BuddyBoss extends Integration {
 	 * @handles groups_cover_image_deleted
 	 *
 	 * @param int $source_id
-	 *
 	 */
 	public function delete_existing_group_cover( $source_id ) {
 		$this->delete_existing_cover( $source_id, 'group' );
@@ -477,7 +483,6 @@ class BuddyBoss extends Integration {
 	 *
 	 * @param int    $source_id
 	 * @param string $object_type
-	 *
 	 */
 	public function delete_existing_cover( $source_id, $object_type ) {
 		/** @var BBoss_Item $as3cf_item */
@@ -495,7 +500,6 @@ class BuddyBoss extends Integration {
 	 * @handles deleted_user
 	 *
 	 * @param int $user_id
-	 *
 	 */
 	public function handle_deleted_user( $user_id ) {
 		$args = array( 'item_id' => $user_id, 'object' => 'user' );
@@ -637,7 +641,7 @@ class BuddyBoss extends Integration {
 			}
 
 			$as3cf_item = $class::get_by_source_id( $item_source['id'] );
-			if ( empty( $as3cf_item ) ) {
+			if ( empty( $as3cf_item ) || ! $as3cf_item->served_by_provider() ) {
 				return $url;
 			}
 
