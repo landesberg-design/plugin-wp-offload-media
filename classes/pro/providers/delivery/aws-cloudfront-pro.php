@@ -6,6 +6,8 @@ use AS3CF_Utils;
 use DeliciousBrains\WP_Offload_Media\Aws3\Aws\CloudFront\UrlSigner;
 use DeliciousBrains\WP_Offload_Media\Items\Item;
 use DeliciousBrains\WP_Offload_Media\Providers\Delivery\AWS_CloudFront;
+use DeliciousBrains\WP_Offload_Media\Settings\Validator_Interface;
+use WP_Error as AS3CF_Result;
 
 class AWS_CloudFront_Pro extends AWS_CloudFront {
 
@@ -31,12 +33,64 @@ class AWS_CloudFront_Pro extends AWS_CloudFront {
 	);
 
 	/**
-	 * A short description of what features the delivery provider enables.
+	 * @inheritDoc
+	 */
+	public static function signed_urls_support_desc() {
+		return __( 'Private Media Supported', 'amazon-s3-and-cloudfront' );
+	}
+
+	/**
+	 * Title used in various places for enabling Signed URLs.
 	 *
 	 * @return string
 	 */
-	public function features_description() {
-		return __( 'Fast, Private Media Supported', 'amazon-s3-and-cloudfront' );
+	public static function signed_urls_option_name() {
+		return __( 'Serve Private Media from CloudFront', 'amazon-s3-and-cloudfront' );
+	}
+
+	/**
+	 * Get the URL for the CloudFront Signed URLs doc.
+	 *
+	 * @param string $section Optional section to go to in page.
+	 *
+	 * @return string
+	 */
+	public static function get_signed_urls_setup_doc_url( string $section = '' ): string {
+		global $as3cf;
+
+		return $as3cf::dbrains_url(
+			'/wp-offload-media/doc/serve-private-media-signed-cloudfront-urls/',
+			array( 'utm_campaign' => 'support+docs' ),
+			$section
+		);
+	}
+
+	/**
+	 * Description used in various places for enabling Signed URLs.
+	 *
+	 * @return string
+	 */
+	public static function signed_urls_option_description(): string {
+		return sprintf(
+			__( 'Prevents public access to certain media files by ensuring they are only accessible via signed URLs that expire shortly after delivery. <a href="%1$s" target="_blank">How to configure private media in CloudFront</a>', 'amazon-s3-and-cloudfront' ),
+			static::get_signed_urls_setup_doc_url()
+		);
+	}
+
+	/**
+	 * Notice text for when a private file can be accessed using an unsigned URL.
+	 *
+	 * @return string
+	 */
+	public static function get_unsigned_url_can_access_private_file_desc(): string {
+		return sprintf(
+			__(
+				'Private media is currently exposed through unsigned URLs. Restore privacy by verifying that the <strong>%1$s</strong> matches the CloudFront behavior. <a href="%2$s" target="_blank">Read more</a>',
+				'amazon-s3-and-cloudfront'
+			),
+			static::signed_urls_object_prefix_name(),
+			static::get_signed_urls_setup_doc_url( 'create-behavior' )
+		);
 	}
 
 	/**
@@ -45,7 +99,7 @@ class AWS_CloudFront_Pro extends AWS_CloudFront {
 	 * @return string
 	 */
 	public static function signed_urls_key_id_name() {
-		return __( 'CloudFront Key Pair Access Key ID', 'amazon-s3-and-cloudfront' );
+		return __( 'Public Key ID', 'amazon-s3-and-cloudfront' );
 	}
 
 	/**
@@ -54,7 +108,7 @@ class AWS_CloudFront_Pro extends AWS_CloudFront {
 	 * @return string
 	 */
 	public static function signed_urls_key_id_description() {
-		return __( 'Any files set to private need a signed URL that includes the Access Key ID from a CloudFront Key Pair.', 'amazon-s3-and-cloudfront' );
+		return __( "Any files set to private need a signed URL that includes the Public Key ID from a Public Key that has been added to a CloudFront distribution's Trusted Key Group.", 'amazon-s3-and-cloudfront' );
 	}
 
 	/**
@@ -63,7 +117,7 @@ class AWS_CloudFront_Pro extends AWS_CloudFront {
 	 * @return string
 	 */
 	public static function signed_urls_key_file_path_name() {
-		return __( 'CloudFront Private Key File Path', 'amazon-s3-and-cloudfront' );
+		return __( 'Private Key File Path', 'amazon-s3-and-cloudfront' );
 	}
 
 	/**
@@ -72,7 +126,7 @@ class AWS_CloudFront_Pro extends AWS_CloudFront {
 	 * @return string
 	 */
 	public static function signed_urls_key_file_path_description() {
-		return __( 'Any files set to private need to have their URLs signed with the Private Key File downloaded from the CloudFront Key Pair.', 'amazon-s3-and-cloudfront' );
+		return __( "Any files set to private need to have their URLs signed with the Private Key File whose Public Key has been uploaded to CloudFront and added to a distribution's Trusted Key Group.", 'amazon-s3-and-cloudfront' );
 	}
 
 	/**
@@ -81,11 +135,11 @@ class AWS_CloudFront_Pro extends AWS_CloudFront {
 	 * @return string
 	 */
 	public static function signed_urls_object_prefix_description() {
-		return __( 'Any files set to private will be stored at this path prepended to the path configured above. An Amazon CloudFront behaviour is then set up to restrict public access to the files at this path.', 'amazon-s3-and-cloudfront' );
+		return __( 'Any files set to private will be stored with this path prepended to the configured bucket path. An Amazon CloudFront behaviour must then be set up to restrict public access to the files at this path.', 'amazon-s3-and-cloudfront' );
 	}
 
 	/**
-	 * @inheritDoc
+	 * {@inheritDoc}
 	 */
 	public function get_signed_url( Item $as3cf_item, $path, $domain, $scheme, $timestamp, $headers = array() ) {
 		if ( static::use_signed_urls_key_file() ) {
@@ -111,5 +165,85 @@ class AWS_CloudFront_Pro extends AWS_CloudFront {
 
 		// Not set up for signing or in different private prefix, punt to default implementation.
 		return parent::get_signed_url( $as3cf_item, $path, $domain, $scheme, $timestamp, $headers );
+	}
+
+	/**
+	 * Validate settings for serving signed URLs.
+	 *
+	 * @return AS3CF_Result
+	 */
+	protected function validate_signed_url_settings(): AS3CF_Result {
+		if ( ! $this->as3cf->get_setting( 'enable-signed-urls' ) ) {
+			return new AS3CF_Result( Validator_Interface::AS3CF_STATUS_MESSAGE_SUCCESS );
+		}
+
+		// Is the key ID set?
+		if ( empty( $this->get_signed_urls_key_id() ) ) {
+			return new AS3CF_Result(
+				Validator_Interface::AS3CF_STATUS_MESSAGE_ERROR,
+				sprintf(
+					_x(
+						'Private media cannot be delivered at the moment because required field <strong>%1$s</strong> is empty. <a href="%2$s" target="_blank">Read more</a>',
+						'Delivery setting notice for issue with missing key ID',
+						'amazon-s3-and-cloudfront'
+					),
+					static::signed_urls_key_id_name(),
+					static::get_provider_service_quick_start_url() . '#configure-plugin'
+				)
+			);
+		}
+
+		$key_file_path   = $this->get_signed_urls_key_file_path();
+		$key_file_notice = $this->as3cf->notices->find_notice_by_id( 'validate-signed-urls-key-file-path' );
+
+		if ( empty( $key_file_path ) && empty( $key_file_notice ) ) {
+			return new AS3CF_Result(
+				Validator_Interface::AS3CF_STATUS_MESSAGE_ERROR,
+				sprintf(
+					_x(
+						'Private media cannot be delivered at the moment because required field <strong>%1$s</strong> is empty. <a href="%2$s" target="_blank">Read more</a>',
+						'Delivery setting notice for issue with empty / missing key file path',
+						'amazon-s3-and-cloudfront'
+					),
+					static::signed_urls_key_file_path_name(),
+					static::get_provider_service_quick_start_url() . '#configure-plugin'
+				)
+			);
+		}
+
+		// Did the signed url key file validation trigger any issues?
+		if ( ! empty( $key_file_notice ) ) {
+			return new AS3CF_Result(
+				Validator_Interface::AS3CF_STATUS_MESSAGE_ERROR,
+				sprintf(
+					_x(
+						'Private media cannot be delivered at the moment because the file provided in <strong>%1$s</strong> is invalid or inaccessible. <a href="%3$s" target="_blank">Read more</a>',
+						'Delivery setting notice for issue with Key File Path',
+						'amazon-s3-and-cloudfront'
+					),
+					static::signed_urls_key_file_path_name(),
+					ucfirst( $this->as3cf->notices->get_short_message( $key_file_notice ) ),
+					static::get_provider_service_quick_start_url() . '#configure-plugin'
+				)
+			);
+		}
+
+		// Do we have a private path?
+		if ( empty( $this->get_signed_urls_object_prefix() ) ) {
+			return new AS3CF_Result(
+				Validator_Interface::AS3CF_STATUS_MESSAGE_ERROR,
+				sprintf(
+					_x(
+						'Private media cannot be delivered at the moment because required field <strong>%1$s</strong> is empty. <a href="%2$s" target="_blank">Read more</a>',
+						'Delivery setting notice for issue with missing Private Bucket Path',
+						'amazon-s3-and-cloudfront'
+					),
+					static::signed_urls_object_prefix_name(),
+					static::get_provider_service_quick_start_url() . '#configure-plugin'
+				)
+			);
+		}
+
+		return new AS3CF_Result( Validator_Interface::AS3CF_STATUS_MESSAGE_SUCCESS );
 	}
 }

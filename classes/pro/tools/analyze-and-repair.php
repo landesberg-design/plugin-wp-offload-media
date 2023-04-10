@@ -21,54 +21,20 @@ abstract class Analyze_And_Repair extends Background_Tool {
 	);
 
 	/**
-	 * Initialize the tool.
-	 */
-	public function init() {
-		parent::init();
-
-		if ( ! $this->as3cf->is_pro_plugin_setup() ) {
-			return;
-		}
-
-		add_action( 'as3cfpro_load_assets', array( $this, 'load_assets' ) );
-	}
-
-	/**
-	 * Get the details for the sidebar block
-	 *
-	 * @return array|bool
-	 */
-	protected function get_sidebar_block_args() {
-		if ( ! $this->as3cf->is_pro_plugin_setup() ) {
-			return false;
-		}
-
-		return parent::get_sidebar_block_args();
-	}
-
-	/**
-	 * Load assets.
-	 */
-	public function load_assets() {
-		parent::load_assets();
-
-		$this->as3cf->enqueue_script( "as3cf-pro-analyze-and-repair-script", "assets/js/pro/tools/analyze-and-repair", array(
-			'jquery',
-			'wp-util',
-		) );
-	}
-
-	/**
 	 * Should render.
 	 *
 	 * @return bool
 	 */
 	public function should_render() {
+		if ( ! $this->as3cf->is_pro_plugin_setup() ) {
+			return false;
+		}
+
 		if ( false !== static::show_tool_constant() && constant( static::show_tool_constant() ) ) {
 			return true;
 		}
 
-		return $this->is_queued() || $this->is_processing() || $this->is_paused() || $this->is_cancelled();
+		return $this->is_active();
 	}
 
 	/**
@@ -94,14 +60,23 @@ abstract class Analyze_And_Repair extends Background_Tool {
 	 *
 	 * @return string
 	 */
-	public function get_queued_status() {
+	public function get_queued_status(): string {
 		return __( 'Analyzing and repairing offload metadata.', 'amazon-s3-and-cloudfront' );
+	}
+
+	/**
+	 * Get short queued status text.
+	 *
+	 * @return string
+	 */
+	public function get_short_queued_status(): string {
+		return _x( 'Repairing…', 'Short tool running message', 'amazon-s3-and-cloudfront' );
 	}
 
 	/**
 	 * Message for error notice
 	 *
-	 * @param null $message Optional message to override the default for the tool.
+	 * @param string|null $message Optional message to override the default for the tool.
 	 *
 	 * @return string
 	 */

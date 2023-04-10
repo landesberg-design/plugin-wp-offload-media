@@ -12,7 +12,7 @@ class Wpml extends Integration {
 	 *
 	 * @return bool
 	 */
-	public static function is_installed() {
+	public static function is_installed(): bool {
 		if ( class_exists( 'SitePress' ) ) {
 			return true;
 		}
@@ -24,6 +24,13 @@ class Wpml extends Integration {
 	 * Init integration.
 	 */
 	public function init() {
+		// Nothing to do.
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function setup() {
 		add_action( 'wpml_media_create_duplicate_attachment', array( $this, 'duplicate_offloaded_item' ), 10, 2 );
 	}
 

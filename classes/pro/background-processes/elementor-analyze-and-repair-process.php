@@ -48,7 +48,7 @@ class Elementor_Analyze_And_Repair_Process extends Background_Tool_Process {
 		$original_json = get_post_meta( $post_id, '_elementor_data', true );
 		$skip_values   = array( 'true', 'false', 'null' );
 
-		if ( empty( $original_json ) || in_array( trim( $original_json ), $skip_values, true ) ) {
+		if ( empty( $original_json ) || ( is_string( $original_json ) && in_array( trim( $original_json ), $skip_values, true ) ) ) {
 			return true;
 		}
 
@@ -193,6 +193,6 @@ class Elementor_Analyze_And_Repair_Process extends Background_Tool_Process {
 	 * @return string
 	 */
 	protected function get_complete_message() {
-		return __( '<strong>WP Offload Media</strong> &mdash; Finished the Elementor Analyze and Repair process.', 'amazon-s3-and-cloudfront' );
+		return __( 'Finished the Elementor Analyze and Repair process.', 'amazon-s3-and-cloudfront' );
 	}
 }
